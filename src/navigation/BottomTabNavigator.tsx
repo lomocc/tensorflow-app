@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as React from 'react';
-
 import Colors from '../constants/Colors';
 import useColorScheme from '../hooks/useColorScheme';
+import MobilenetScreen from '../screens/MobilenetScreen';
 import TabOneScreen from '../screens/TabOneScreen';
 import TabTwoScreen from '../screens/TabTwoScreen';
 import { BottomTabParamList, TabOneParamList, TabTwoParamList } from '../types';
@@ -16,20 +16,34 @@ export default function BottomTabNavigator() {
 
   return (
     <BottomTab.Navigator
-      initialRouteName="TabOne"
-      tabBarOptions={{ activeTintColor: Colors[colorScheme].tint }}>
+      initialRouteName="TabMobilenet"
+      tabBarOptions={{ activeTintColor: Colors[colorScheme].tint }}
+    >
+      <BottomTab.Screen
+        name="TabMobilenet"
+        component={TabMobilenetNavigator}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="ios-code" color={color} />
+          ),
+        }}
+      />
       <BottomTab.Screen
         name="TabOne"
         component={TabOneNavigator}
         options={{
-          tabBarIcon: ({ color }) => <TabBarIcon name="ios-code" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="ios-code" color={color} />
+          ),
         }}
       />
       <BottomTab.Screen
         name="TabTwo"
         component={TabTwoNavigator}
         options={{
-          tabBarIcon: ({ color }) => <TabBarIcon name="ios-code" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="ios-code" color={color} />
+          ),
         }}
       />
     </BottomTab.Navigator>
@@ -44,6 +58,21 @@ function TabBarIcon(props: { name: string; color: string }) {
 
 // Each tab has its own navigation stack, you can read more about this pattern here:
 // https://reactnavigation.org/docs/tab-based-navigation#a-stack-navigator-for-each-tab
+
+const TabMobilenetStack = createStackNavigator<TabOneParamList>();
+
+function TabMobilenetNavigator() {
+  return (
+    <TabMobilenetStack.Navigator>
+      <TabMobilenetStack.Screen
+        name="TabOneScreen"
+        component={MobilenetScreen}
+        options={{ headerTitle: 'Tab One Title' }}
+      />
+    </TabMobilenetStack.Navigator>
+  );
+}
+
 const TabOneStack = createStackNavigator<TabOneParamList>();
 
 function TabOneNavigator() {
