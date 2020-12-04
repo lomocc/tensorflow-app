@@ -1,9 +1,10 @@
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as tf from '@tensorflow/tfjs';
-import { fetch } from '@tensorflow/tfjs-react-native';
-import * as jpeg from 'jpeg-js';
+import { decodeJpeg, fetch } from '@tensorflow/tfjs-react-native';
 import React, { Component, Fragment } from 'react';
 import {
+  ActivityIndicator,
+  Button,
   Image,
   ImageSourcePropType,
   SafeAreaView,
@@ -13,16 +14,20 @@ import {
   Text,
   View,
 } from 'react-native';
+import models from '../../models';
 import Run from './components/Run';
 
-interface Props {
-  image: ImageSourcePropType;
-}
+interface Props {}
 
 interface State {
-  prediction: Array<{ className: string; probability: number }>;
+  prediction: {
+    className: string;
+    probability: number;
+  }[];
   predictionTime?: number;
   imageChecksum?: number;
+  loading?: boolean;
+  image?: ImageSourcePropType;
 }
 
 export default class MobilenetScreen extends Component<Props, State> {
@@ -30,38 +35,26 @@ export default class MobilenetScreen extends Component<Props, State> {
     super(props);
     this.state = {
       prediction: [],
+      loading: false,
     };
   }
-  async componentDidMount() {
-    // Load mobilenet
-    const model = await mobilenet.load();
-
-    //warmup mobilenet
-    // @ts-ignore
-    await model.classify(tf.zeros([1, 224, 224, 3]));
-
-    //     const image = require('../../assets/mobilenet/catsmall.jpg');
-    // const imageAssetPath = Image.resolveAssetSource(image);
-    // const response = await fetch(imageAssetPath.uri, {}, { isBinary: true });
-    // const imageData = await response.arrayBuffer();
-
-    // const imageTensor = decodeJpeg(imageData);
-
-    // const prediction = await model.classify(imageTensor);
-
-    const image = require('../../assets/mobilenet/catsmall.jpg');
-    // const image = require('../../assets/mobilenet/human2Zombie.jpg');
-    // const image = require('../../assets/mobilenet/img_1023.jpg');
+  onClassify = async (modelConfig: mobilenet.ModelConfig) => {
+    // const image = require('../../assets/mobilenet/catsmall.jpg');
     // const image = require('../../assets/mobilenet/img_0783.jpg');
-    // console.log('image', image);
+    const image = require('../../assets/mobilenet/horse.jpeg');
+    // const image = require('../../assets/mobilenet/WX20201201-151227@2x.png');
 
+    this.setState({
+      loading: true,
+      image: image,
+    });
+    const model = await mobilenet.load(modelConfig);
     // Read the image into a tensor
     const imageAssetPath = Image.resolveAssetSource(image);
     const response = await fetch(imageAssetPath.uri, {}, { isBinary: true });
     const imageDataArrayBuffer = await response.arrayBuffer();
-    // const imageData = new Uint8Array(imageDataArrayBuffer);
-    // const imageTensor = decodeJpeg(imageData);
-    const imageTensor = this.imageToTensor(imageDataArrayBuffer);
+    const imageData = new Uint8Array(imageDataArrayBuffer);
+    const imageTensor = decodeJpeg(imageData);
 
     // Compute a checksum for the image. Useful for debugging.
     const imageTensorSum = imageTensor.sum();
@@ -72,31 +65,20 @@ export default class MobilenetScreen extends Component<Props, State> {
 
     const prediction = await model.classify(imageTensor);
 
-    const end = Date.now();
+    console.log('====================================');
+    console.log('prediction', prediction);
+    console.log('====================================');
 
+    const end = Date.now();
     this.setState({
       prediction,
       predictionTime: end - start,
       imageChecksum,
+      loading: false,
     });
     tf.dispose([imageTensor, imageTensorSum]);
-  }
-  imageToTensor(rawImageData: ArrayBuffer): tf.Tensor3D {
-    const TO_UINT8ARRAY = true;
-    const { width, height, data } = jpeg.decode(rawImageData, TO_UINT8ARRAY);
-    // Drop the alpha channel info for mobilenet
-    const buffer = new Uint8Array(width * height * 3);
-    let offset = 0; // offset into original data
-    for (let i = 0; i < buffer.length; i += 3) {
-      buffer[i] = data[offset];
-      buffer[i + 1] = data[offset + 1];
-      buffer[i + 2] = data[offset + 2];
-
-      offset += 4;
-    }
-
-    return tf.tensor3d(buffer, [height, width, 3]);
-  }
+  };
+  async componentDidMount() {}
   renderPrediction() {
     const { prediction, predictionTime, imageChecksum } = this.state;
     return (
@@ -119,8 +101,7 @@ export default class MobilenetScreen extends Component<Props, State> {
   }
 
   render() {
-    const { image } = this.props;
-    const { prediction } = this.state;
+    const { prediction, loading, image } = this.state;
 
     return (
       <Fragment>
@@ -130,9 +111,24 @@ export default class MobilenetScreen extends Component<Props, State> {
             contentInsetAdjustmentBehavior="automatic"
             style={styles.scrollView}
           >
+            {loading && <ActivityIndicator size="large" color="#0000ff" />}
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
-                {/* <Button onPress={this.props.returnToMain} title="Back" /> */}
+                {Object.keys(models).map((name) => (
+                  <Button
+                    key={name}
+                    title={name.replace(
+                      /imagenet_mobilenet_(.*)_classification_1_default_1/,
+                      '$1'
+                    )}
+                    onPress={() =>
+                      this.onClassify(
+                        // @ts-ignore
+                        models[name]
+                      )
+                    }
+                  />
+                ))}
               </View>
 
               <View style={styles.sectionContainer}>
@@ -144,7 +140,9 @@ export default class MobilenetScreen extends Component<Props, State> {
                 </View>
                 {/* Image Area */}
                 <View style={styles.imageArea}>
-                  <Image style={{ width: 245, height: 166 }} source={image} />
+                  {image && (
+                    <Image style={{ width: 245, height: 166 }} source={image} />
+                  )}
                 </View>
                 {/* Result Area */}
                 <View style={styles.resultArea}>
